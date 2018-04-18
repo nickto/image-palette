@@ -5,7 +5,6 @@ from sklearn import cluster, mixture
 import argparse
 
 
-# %%
 def resize_image(img: np.ndarray,
                  width: int = 800,
                  height: int = 600,
@@ -55,6 +54,7 @@ def _image2data(img: np.ndarray) -> np.array:
         Image as a 2D tensor.
     """
     return img.reshape((img.shape[0] * img.shape[1], img.shape[2]))
+
 
 def get_pallete(img: np.ndarray,
                 num_colors: int = 3,
@@ -121,6 +121,7 @@ def get_pallete(img: np.ndarray,
 
     return palette
 
+
 def plot_palette(palette: dict,
                   width: int = 800,
                   height: int = 200) -> np.ndarray:
@@ -151,6 +152,7 @@ def plot_palette(palette: dict,
                       thickness=cv2.FILLED)
         start_x = end_x
     return img
+
 
 def _rgb_to_hex_string(rgb: tuple) -> str:
     """Convert RGB tuple to hex string."""
@@ -222,6 +224,7 @@ def plot_palette_with_text(palette: dict,
 
     return img
 
+
 def palette_to_csv(palette, filename, *args, **kwargs) -> pd.DataFrame:
     """Output palette to csv.
 
@@ -239,7 +242,7 @@ def palette_to_csv(palette, filename, *args, **kwargs) -> pd.DataFrame:
     df.to_csv(filename, *args, **kwargs)
     return df
 
-# %%
+
 def main():
     parser = argparse.ArgumentParser(
         description="Get palette from an image.")
@@ -328,6 +331,7 @@ def main():
         cv2.imwrite(args.fileout + "_with_codes.png", palette_img)
 
     return
+
 
 if __name__ == "__main__":
     main()
