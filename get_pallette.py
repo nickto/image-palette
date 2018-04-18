@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 from sklearn import cluster
 
-
 # %%
 MIN_HEIGHT = 600
 MIN_WIDTH = 800
@@ -128,7 +127,77 @@ def plot_pallette(pallette: dict,
         start_x = end_x
     return img
 
-def pallette_to_csv(pallette, filename, *args, **kwargs):
+def _rgb_to_hex_string(rgb: tuple) -> str:
+    """Convert RGB tuple to hex string."""
+    def clamp(x):
+        return max(0, min(x, 255))
+    return "#{0:02x}{1:02x}{2:02x}".format(clamp(rgb[0]),
+                                           clamp(rgb[1]),
+                                           clamp(rgb[2]))
+
+
+def plot_pallette_with_text(pallette: dict,
+                            color_max_width: int = 100,
+                            vertical_padding: int = 5,
+                            horizontal_padding: int = 5) -> np.ndarray:
+    FONT = cv2.FONT_HERSHEY_SIMPLEX
+
+    # Calculate the text area size
+    str_width = []
+    str_height = []
+    for color in pallette:
+        rgb_tuple = str(color["rgb"])
+        rgb_hex = _rgb_to_hex_string(color["rgb"])
+        color_str = rgb_tuple  # + "," + rgb_hex
+        str_size = cv2.getTextSize(text=color_str,
+                                   fontFace=FONT,
+                                   fontScale=1,
+                                   thickness=1)
+        str_width.append(str_size[0][0])
+        str_height.append(str_size[0][1])
+
+    str_width = max(str_width)
+    str_height = max(str_height)
+
+    # Compute the size of box for each color
+    box_height = str_height + 2 * vertical_padding
+    box_width = color_max_width + str_width + 2 * horizontal_padding
+
+    # Initialise empty image
+    num_colors = len(pallette)
+    img = np.zeros((num_colors * box_height, box_width, 3))
+    img[:] = 255
+
+    # Add colors
+    max_color_proportion = np.max([c["proportion"] for c in pallette])
+    for i, color in enumerate(pallette):
+        # Add rectangle
+        color_width = int(round(color["proportion"] * color_max_width /
+                                max_color_proportion))
+        top_left = (0, i * box_height)
+        bottom_right = (color_width, (i + 1) * box_height - 1)
+        cv2.rectangle(img=img,
+                      pt1=top_left,
+                      pt2=bottom_right,
+                      color=color["rgb"],
+                      thickness=cv2.FILLED)
+
+        bottom_left_text = (color_max_width + horizontal_padding,
+                            (i + 1) * box_height - vertical_padding)
+        rgb_tuple = str(color["rgb"])
+        rgb_hex = _rgb_to_hex_string(color["rgb"])
+        color_str = rgb_tuple  # + "," + rgb_hex
+        cv2.putText(img=img,
+                    text=color_str,
+                    org=bottom_left_text,
+                    fontFace=FONT,
+                    fontScale=1,
+                    color=(0, 0, 0),
+                    thickness=1)
+
+    return img
+
+def pallette_to_csv(pallette, filename, *args, **kwargs) -> pd.DataFrame:
     """Output pallette to csv.
 
     Args:
@@ -157,3 +226,31 @@ pallette_to_csv(pallette, "tmp.csv", index=False, sep="\t")
 # %%
 pallete_img = plot_pallette(pallette, height=200, width=800)
 cv2.imwrite("tmp.png", pallete_img)
+# %%
+pallete_img = plot_pallette_with_text(pallette, color_max_width=600, vertical_padding=10)
+cv2.imwrite("tmp.png", pallete_img)
+
+# %%
+# Create a black image
+img = np.zeros((512,512,3), np.uint8)
+
+# Write some Text
+
+font                   = cv2.FONT_HERSHEY_SIMPLEX
+bottomLeftCornerOfText = (10,500)
+fontScale              = 2
+fontColor              = (255,255,255)
+lineType               = 6
+
+cv2.putText(img,'Hello World!',
+    bottomLeftCornerOfText,
+    font,
+    fontScale,
+    fontColor,
+    1,
+    lineType)
+
+
+
+#Display the image
+cv2.imwrite("tmp.jpeg",img)
