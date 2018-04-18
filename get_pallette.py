@@ -3,16 +3,14 @@ import numpy as np
 import pandas as pd
 from sklearn import cluster, mixture
 
-# %%
-MIN_HEIGHT = 600
-MIN_WIDTH = 800
-num_colors = 5
 
 # %%
 def resize_image(img: np.ndarray,
                  width: int = 800,
                  height: int = 600,
-                 ensure_min: bool = True) -> np.ndarray:
+                 ensure_min: bool = True,
+                 blur=True,
+                 diameter=10) -> np.ndarray:
     """Resize image.
 
     If ensure_min is True, then the resized image dimensions will be at least
@@ -24,11 +22,17 @@ def resize_image(img: np.ndarray,
         width:      desired width of the image.
         height:     desired height of the image.
         ensure_min: if True, dimensions are at least (width, height).
+        blur:       blur image before downsampling using bilateral filter.
+        diameter:   diameter of a bilateral filter.
 
     Returns:
         Resized image.
     """
     image_height, image_width = img.shape[:2]
+
+    if blur:
+        img = cv2.bilateralFilter(img, diameter, 75, 75)
+
     if ensure_min:
         scale_factor = min(width / image_width, height / image_height)
     else:
@@ -59,7 +63,7 @@ def get_pallete(img: np.ndarray,
     Args:
         img:        image.
         num_colors: number of colors in pallette.
-        algorithm:  one of "k-means", "mixture".
+        algorithm:  one of "k-means", "mixture", "bayesian-mixture".
 
     Returns:
         Dictionary with keys "colors" and "proportions".
@@ -79,7 +83,8 @@ def get_pallete(img: np.ndarray,
         proportions = counts / np.sum(counts)
 
     elif algorithm == "mixture":
-        gaussian_mix = mixture.GaussianMixture(n_components=num_colors)
+        gaussian_mix = mixture.GaussianMixture(n_components=num_colors,
+                                               max_iter=1000)
         gaussian_mix.fit(img_2d)
 
         colors = np.round(gaussian_mix.means_)
@@ -87,6 +92,18 @@ def get_pallete(img: np.ndarray,
 
         counts = np.bincount(gaussian_mix.predict(img))
         proportions = counts / np.sum(counts)
+
+    elif algorithm == "bayesian-mixture":
+        gaussian_mix = mixture.BayesianGaussianMixture(n_components=num_colors,
+                                                       max_iter=1000)
+        gaussian_mix.fit(img_2d)
+
+        colors = np.round(gaussian_mix.means_)
+        colors = colors.tolist()
+
+        counts = np.bincount(gaussian_mix.predict(img))
+        proportions = counts / np.sum(counts)
+
     else:
         raise ValueError("Wrong value of algorithm parameter.")
 
@@ -221,14 +238,22 @@ def pallette_to_csv(pallette, filename, *args, **kwargs) -> pd.DataFrame:
     df.to_csv(filename, *args, **kwargs)
     return df
 
+# %%
+def main():
+    return
+
+if __name__ == "__main__":
+
+
+
 
 # %%
 # Read in image
 source_img = cv2.imread("test-image.jpg")
-img = resize_image(source_img, 200, 100, ensure_min=True)
+img = resize_image(source_img, 800, 600, ensure_min=True)
 
 # %%
-pallette = get_pallete(img, num_colors=20, algorithm="k-means")
+pallette = get_pallete(img, num_colors=10, algorithm="k-means")
 pallete_img = plot_pallette_with_text(pallette, color_max_width=600, vertical_padding=10)
 cv2.imwrite("tmp.png", pallete_img)
 
@@ -238,12 +263,32 @@ pallete_img = plot_pallette_with_text(pallette, color_max_width=600, vertical_pa
 cv2.imwrite("tmp.png", pallete_img)
 
 # %%
-img_2d = _image2data(img)
-gaussian_mix = mixture.GaussianMixture(n_components=5)
-gaussian_mix.fit(img_2d)
+pallette = get_pallete(img, num_colors=7, algorithm="bayesian-mixture")
+pallete_img = plot_pallette_with_text(pallette, color_max_width=600, vertical_padding=10)
+cv2.imwrite("tmp.png", pallete_img)
 
-gaussian_mix.means_
-np.unique(gaussian_mix.predict(img_2d))
+# %%
+img = resize_image(source_img, 50, 20, ensure_min=True)
+img_2d = _image2data(img)
+spectral = cluster.SpectralClustering(n_clusters=5,
+                                          assign_labels="discretize")
+spectral.fit(img_2d)
+spectral.predict(img_2d)
+
+# %%
+from sklearn import manifold
+
+img = resize_image(source_img, 100, 60, ensure_min=True)
+img_2d = _image2data(img)
+
+tsne = manifold.TSNE(n_components=2, verbose=1)
+reduced = tsne.fit_transform(img_2d)
+df = pd.DataFrame(reduced)
+df.plot(x=0, y=1, kind="scatter")
+
+
+#spectral.
+#np.unique(gaussian_mix.predict(img_2d))
 
 # %%
 pallete_img = plot_pallette(pallette, height=200, width=800)
@@ -256,23 +301,8 @@ cv2.imwrite("tmp.png", pallete_img)
 # Create a black image
 img = np.zeros((512,512,3), np.uint8)
 
-# Write some Text
-
-font                   = cv2.FONT_HERSHEY_SIMPLEX
-bottomLeftCornerOfText = (10,500)
-fontScale              = 2
-fontColor              = (255,255,255)
-lineType               = 6
-
-cv2.putText(img,'Hello World!',
-    bottomLeftCornerOfText,
-    font,
-    fontScale,
-    fontColor,
-    1,
-    lineType)
-
-
-
+# %%
 #Display the image
+source_img = cv2.imread("test-image.jpg")
+img = cv2.bilateralFilter(source_img,50,75,75)
 cv2.imwrite("tmp.jpeg",img)
