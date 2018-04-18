@@ -83,7 +83,21 @@ def get_pallete(img: np.ndarray,
 
     return {"colors": colors, "proportions": proportions}
 
-def plot_pallette(pallette, height=200, width=800):
+def plot_pallette(pallette: dict,
+                  width: int = 800,
+                  height: int = 200) -> np.ndarray:
+    """Create an image of palletteself.
+
+    Width of colored rectangles is proportional to the prevalance of the color.
+
+    Args:
+        pallette: output of get_pallete() function.
+        width:    width of the desired image in pixels.
+        height:   height of the desired image in pixels.
+
+    Returns:
+        Image of pallette.
+    """
     # Initialise empty image
     img = np.zeros((height, width, 3), np.uint8)
 
@@ -101,6 +115,8 @@ def plot_pallette(pallette, height=200, width=800):
                       thickness=cv2.FILLED)
         start_x = end_x
     return img
+
+
 
 # %%
 # Read in image
