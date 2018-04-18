@@ -1,6 +1,9 @@
 import cv2
 import numpy as np
+import pandas as pd
 from sklearn import cluster
+
+
 # %%
 MIN_HEIGHT = 600
 MIN_WIDTH = 800
@@ -83,10 +86,16 @@ def get_pallete(img: np.ndarray,
 
     # Reorder colors according to their prevalence
     ordered_idx = np.flip(np.argsort(proportions), axis=0)
-    counts = [counts[idx] for idx in ordered_idx]
+    colors = [colors[idx] for idx in ordered_idx]
     proportions = [proportions[idx] for idx in ordered_idx]
 
-    return {"colors": colors, "proportions": proportions}
+    # Create a list of dicts
+    pallette = []
+    for color, proportion in zip(colors, proportions):
+        pallette.append({"rgb": tuple([int(c) for c in color]),
+                         "proportion": proportion})
+
+    return pallette
 
 def plot_pallette(pallette: dict,
                   width: int = 800,
@@ -109,24 +118,42 @@ def plot_pallette(pallette: dict,
     # Add a rectangle for each cluster with width proportional to the size
     # of the cluster
     start_x = 0
-    for i, color in enumerate(pallette["colors"]):
-        proportion = pallette["proportions"][i]
-
-        end_x = start_x + int(round(proportion * width))
+    for color in pallette:
+        end_x = start_x + int(round(color["proportion"] * width))
         cv2.rectangle(img=img,
                       pt1=(start_x, 0),
                       pt2=(end_x, height),
-                      color=tuple(color),
+                      color=color["rgb"],
                       thickness=cv2.FILLED)
         start_x = end_x
     return img
+
+def pallette_to_csv(pallette, filename, *args, **kwargs):
+    """Output pallette to csv.
+
+    Args:
+        pallette:        output of get_pallete() function.
+        filename:        file name.
+        *args, **kwargs: other arguments to pandas.DataFrame.to_csv().
+
+    Returns:
+        Pandas DataFrame and saves a file.
+    """
+    df = pd.DataFrame(pallette)
+    df[["red", "green", "blue"]] = df["rgb"].apply(pd.Series)
+    df.drop("rgb", inplace=True, axis=1)
+    df.to_csv(filename, *args, **kwargs)
+    return df
 
 
 # %%
 # Read in image
 source_img = cv2.imread("test-image.jpg")
 img = resize_image(source_img, 200, 100, ensure_min=True)
-pallette = get_pallete(img, num_colors=10, algorithm="k-means")
+pallette = get_pallete(img, num_colors=20, algorithm="k-means")
+pallette_to_csv(pallette, "tmp.csv", index=False, sep="\t")
+
+
 # %%
 pallete_img = plot_pallette(pallette, height=200, width=800)
 cv2.imwrite("tmp.png", pallete_img)
