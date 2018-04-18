@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import pandas as pd
 from sklearn import cluster, mixture
+import argparse
 
 
 # %%
@@ -34,9 +35,9 @@ def resize_image(img: np.ndarray,
         img = cv2.bilateralFilter(img, diameter, 75, 75)
 
     if ensure_min:
-        scale_factor = min(width / image_width, height / image_height)
-    else:
         scale_factor = max(width / image_width, height / image_height)
+    else:
+        scale_factor = min(width / image_width, height / image_height)
 
     return cv2.resize(img, (0,0), fx=scale_factor, fy=scale_factor)
 
@@ -85,7 +86,7 @@ def get_pallete(img: np.ndarray,
     elif algorithm == "mixture":
         gaussian_mix = mixture.GaussianMixture(n_components=num_colors,
                                                max_iter=1000)
-        gaussian_mix.fit(img_2d)
+        gaussian_mix.fit(img)
 
         colors = np.round(gaussian_mix.means_)
         colors = colors.tolist()
@@ -96,7 +97,7 @@ def get_pallete(img: np.ndarray,
     elif algorithm == "bayesian-mixture":
         gaussian_mix = mixture.BayesianGaussianMixture(n_components=num_colors,
                                                        max_iter=1000)
-        gaussian_mix.fit(img_2d)
+        gaussian_mix.fit(img)
 
         colors = np.round(gaussian_mix.means_)
         colors = colors.tolist()
@@ -240,69 +241,93 @@ def pallette_to_csv(pallette, filename, *args, **kwargs) -> pd.DataFrame:
 
 # %%
 def main():
+    parser = argparse.ArgumentParser(
+        description="Get pallette from an image.")
+    parser.add_argument(
+        "-n", "--num-colors",
+        default=8,
+        type=int,
+        required=False,
+        help="number of colors in pallette",
+        metavar="NUM",
+        dest="num_colors")
+    parser.add_argument(
+        "-o", "--output",
+        type=str,
+        default=None,
+        required=False,
+        help="output file name without extension",
+        metavar="FILE",
+        dest="fileout")
+    parser.add_argument(
+        "-a", "--algorithm",
+        type=str,
+        default="bayesian-mixture",
+        required=False,
+        help="clustering algorithm",
+        metavar="ALGORITHM",
+        choices=["k-means", "mixture", "bayesian-mixture"],
+        dest="algorithm")
+    parser.add_argument(
+        "-w", "--width",
+        type=int,
+        default=400,
+        required=False,
+        help="image size used for clustering",
+        metavar="PIXLES",
+        dest="width")
+    parser.add_argument(
+        "-c", "--csv",
+        action="store_true",
+        help="produce CSV file of pallette",
+        dest="csv")
+    parser.add_argument(
+        "-p", "--plot",
+        action="store_true",
+        help="produce simple pallette image",
+        dest="plot")
+    parser.add_argument(
+        "-pt", "--plot-text",
+        action="store_true",
+        help="produce pallette image with RGB codes",
+        dest="plot_text")
+    parser.add_argument(
+        "filein",
+        help="input image",
+        metavar="FILE")
+
+    args = parser.parse_args()
+
+    if not any([args.csv, args.plot, args.plot_text]):
+        print("Please specify some output: csv, simple plot or plot with text.")
+        return
+
+    if args.fileout is None:
+        args.fileout = "pallette"
+
+    source_img = cv2.imread(args.filein)
+    print("Resizing image...", end="")
+    img = resize_image(
+        source_img, args.width, 10, ensure_min=True, blur=True, diameter=30)
+    print("DONE")
+    print("Resized image dimensions: {}x{}".format(img.shape[1], img.shape[0]))
+
+    print("Obtaining pallette...", end="")
+    pallette = get_pallete(
+        img, num_colors=args.num_colors, algorithm=args.algorithm)
+    print("DONE")
+
+    if args.csv:
+        pallette_to_csv(pallette, args.fileout + ".csv", index=False)
+    if args.plot:
+        pallette_img = plot_pallette(pallette)
+        cv2.imwrite(args.fileout + "_simple.png", pallette_img)
+    if args.plot_text:
+        pallette_img = plot_pallette_with_text(
+            pallette, color_max_width=600, vertical_padding=10)
+        cv2.imwrite(args.fileout + "_with_codes.png", pallette_img)
+
     return
 
 if __name__ == "__main__":
-
-
-
-
-# %%
-# Read in image
-source_img = cv2.imread("test-image.jpg")
-img = resize_image(source_img, 800, 600, ensure_min=True)
-
-# %%
-pallette = get_pallete(img, num_colors=10, algorithm="k-means")
-pallete_img = plot_pallette_with_text(pallette, color_max_width=600, vertical_padding=10)
-cv2.imwrite("tmp.png", pallete_img)
-
-# %%
-pallette = get_pallete(img, num_colors=10, algorithm="mixture")
-pallete_img = plot_pallette_with_text(pallette, color_max_width=600, vertical_padding=10)
-cv2.imwrite("tmp.png", pallete_img)
-
-# %%
-pallette = get_pallete(img, num_colors=7, algorithm="bayesian-mixture")
-pallete_img = plot_pallette_with_text(pallette, color_max_width=600, vertical_padding=10)
-cv2.imwrite("tmp.png", pallete_img)
-
-# %%
-img = resize_image(source_img, 50, 20, ensure_min=True)
-img_2d = _image2data(img)
-spectral = cluster.SpectralClustering(n_clusters=5,
-                                          assign_labels="discretize")
-spectral.fit(img_2d)
-spectral.predict(img_2d)
-
-# %%
-from sklearn import manifold
-
-img = resize_image(source_img, 100, 60, ensure_min=True)
-img_2d = _image2data(img)
-
-tsne = manifold.TSNE(n_components=2, verbose=1)
-reduced = tsne.fit_transform(img_2d)
-df = pd.DataFrame(reduced)
-df.plot(x=0, y=1, kind="scatter")
-
-
-#spectral.
-#np.unique(gaussian_mix.predict(img_2d))
-
-# %%
-pallete_img = plot_pallette(pallette, height=200, width=800)
-cv2.imwrite("tmp.png", pallete_img)
-# %%
-pallete_img = plot_pallette_with_text(pallette, color_max_width=600, vertical_padding=10)
-cv2.imwrite("tmp.png", pallete_img)
-
-# %%
-# Create a black image
-img = np.zeros((512,512,3), np.uint8)
-
-# %%
-#Display the image
-source_img = cv2.imread("test-image.jpg")
-img = cv2.bilateralFilter(source_img,50,75,75)
-cv2.imwrite("tmp.jpeg",img)
+    main()
