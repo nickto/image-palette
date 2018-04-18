@@ -59,11 +59,11 @@ def _image2data(img: np.ndarray) -> np.array:
 def get_pallete(img: np.ndarray,
                 num_colors: int = 3,
                 algorithm: str = "k-means") -> dict:
-    """Get pallette colours.
+    """Get palette colours.
 
     Args:
         img:        image.
-        num_colors: number of colors in pallette.
+        num_colors: number of colors in palette.
         algorithm:  one of "k-means", "mixture", "bayesian-mixture".
 
     Returns:
@@ -114,27 +114,27 @@ def get_pallete(img: np.ndarray,
     proportions = [proportions[idx] for idx in ordered_idx]
 
     # Create a list of dicts
-    pallette = []
+    palette = []
     for color, proportion in zip(colors, proportions):
-        pallette.append({"rgb": tuple([int(c) for c in color]),
+        palette.append({"rgb": tuple([int(c) for c in color]),
                          "proportion": proportion})
 
-    return pallette
+    return palette
 
-def plot_pallette(pallette: dict,
+def plot_palette(palette: dict,
                   width: int = 800,
                   height: int = 200) -> np.ndarray:
-    """Create an image of palletteself.
+    """Create an image of paletteself.
 
     Width of colored rectangles is proportional to the prevalance of the color.
 
     Args:
-        pallette: output of get_pallete() function.
+        palette: output of get_pallete() function.
         width:    width of the desired image in pixels.
         height:   height of the desired image in pixels.
 
     Returns:
-        Image of pallette.
+        Image of palette.
     """
     # Initialise empty image
     img = np.zeros((height, width, 3), np.uint8)
@@ -142,7 +142,7 @@ def plot_pallette(pallette: dict,
     # Add a rectangle for each cluster with width proportional to the size
     # of the cluster
     start_x = 0
-    for color in pallette:
+    for color in palette:
         end_x = start_x + int(round(color["proportion"] * width))
         cv2.rectangle(img=img,
                       pt1=(start_x, 0),
@@ -161,7 +161,7 @@ def _rgb_to_hex_string(rgb: tuple) -> str:
                                            clamp(rgb[2]))
 
 
-def plot_pallette_with_text(pallette: dict,
+def plot_palette_with_text(palette: dict,
                             color_max_width: int = 100,
                             vertical_padding: int = 5,
                             horizontal_padding: int = 5) -> np.ndarray:
@@ -170,7 +170,7 @@ def plot_pallette_with_text(pallette: dict,
     # Calculate the text area size
     str_width = []
     str_height = []
-    for color in pallette:
+    for color in palette:
         rgb_tuple = str(color["rgb"])
         rgb_hex = _rgb_to_hex_string(color["rgb"])
         color_str = rgb_tuple  # + "," + rgb_hex
@@ -189,13 +189,13 @@ def plot_pallette_with_text(pallette: dict,
     box_width = color_max_width + str_width + 2 * horizontal_padding
 
     # Initialise empty image
-    num_colors = len(pallette)
+    num_colors = len(palette)
     img = np.zeros((num_colors * box_height, box_width, 3))
     img[:] = 255
 
     # Add colors
-    max_color_proportion = np.max([c["proportion"] for c in pallette])
-    for i, color in enumerate(pallette):
+    max_color_proportion = np.max([c["proportion"] for c in palette])
+    for i, color in enumerate(palette):
         # Add rectangle
         color_width = int(round(color["proportion"] * color_max_width /
                                 max_color_proportion))
@@ -222,18 +222,18 @@ def plot_pallette_with_text(pallette: dict,
 
     return img
 
-def pallette_to_csv(pallette, filename, *args, **kwargs) -> pd.DataFrame:
-    """Output pallette to csv.
+def palette_to_csv(palette, filename, *args, **kwargs) -> pd.DataFrame:
+    """Output palette to csv.
 
     Args:
-        pallette:        output of get_pallete() function.
+        palette:        output of get_pallete() function.
         filename:        file name.
         *args, **kwargs: other arguments to pandas.DataFrame.to_csv().
 
     Returns:
         Pandas DataFrame and saves a file.
     """
-    df = pd.DataFrame(pallette)
+    df = pd.DataFrame(palette)
     df[["red", "green", "blue"]] = df["rgb"].apply(pd.Series)
     df.drop("rgb", inplace=True, axis=1)
     df.to_csv(filename, *args, **kwargs)
@@ -242,13 +242,13 @@ def pallette_to_csv(pallette, filename, *args, **kwargs) -> pd.DataFrame:
 # %%
 def main():
     parser = argparse.ArgumentParser(
-        description="Get pallette from an image.")
+        description="Get palette from an image.")
     parser.add_argument(
         "-n", "--num-colors",
         default=8,
         type=int,
         required=False,
-        help="number of colors in pallette",
+        help="number of colors in palette",
         metavar="NUM",
         dest="num_colors")
     parser.add_argument(
@@ -279,17 +279,17 @@ def main():
     parser.add_argument(
         "-c", "--csv",
         action="store_true",
-        help="produce CSV file of pallette",
+        help="produce CSV file of palette",
         dest="csv")
     parser.add_argument(
         "-p", "--plot",
         action="store_true",
-        help="produce simple pallette image",
+        help="produce simple palette image",
         dest="plot")
     parser.add_argument(
         "-pt", "--plot-text",
         action="store_true",
-        help="produce pallette image with RGB codes",
+        help="produce palette image with RGB codes",
         dest="plot_text")
     parser.add_argument(
         "filein",
@@ -303,7 +303,7 @@ def main():
         return
 
     if args.fileout is None:
-        args.fileout = "pallette"
+        args.fileout = "palette"
 
     source_img = cv2.imread(args.filein)
     print("Resizing image...", end="")
@@ -312,20 +312,20 @@ def main():
     print("DONE")
     print("Resized image dimensions: {}x{}".format(img.shape[1], img.shape[0]))
 
-    print("Obtaining pallette...", end="")
-    pallette = get_pallete(
+    print("Obtaining palette...", end="")
+    palette = get_pallete(
         img, num_colors=args.num_colors, algorithm=args.algorithm)
     print("DONE")
 
     if args.csv:
-        pallette_to_csv(pallette, args.fileout + ".csv", index=False)
+        palette_to_csv(palette, args.fileout + ".csv", index=False)
     if args.plot:
-        pallette_img = plot_pallette(pallette)
-        cv2.imwrite(args.fileout + "_simple.png", pallette_img)
+        palette_img = plot_palette(palette)
+        cv2.imwrite(args.fileout + "_simple.png", palette_img)
     if args.plot_text:
-        pallette_img = plot_pallette_with_text(
-            pallette, color_max_width=600, vertical_padding=10)
-        cv2.imwrite(args.fileout + "_with_codes.png", pallette_img)
+        palette_img = plot_palette_with_text(
+            palette, color_max_width=600, vertical_padding=10)
+        cv2.imwrite(args.fileout + "_with_codes.png", palette_img)
 
     return
 
