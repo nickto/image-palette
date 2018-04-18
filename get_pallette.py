@@ -81,6 +81,11 @@ def get_pallete(img: np.ndarray,
     else:
         raise ValueError("Wrong value of algorithm parameter.")
 
+    # Reorder colors according to their prevalence
+    ordered_idx = np.flip(np.argsort(proportions), axis=0)
+    counts = [counts[idx] for idx in ordered_idx]
+    proportions = [proportions[idx] for idx in ordered_idx]
+
     return {"colors": colors, "proportions": proportions}
 
 def plot_pallette(pallette: dict,
@@ -117,11 +122,10 @@ def plot_pallette(pallette: dict,
     return img
 
 
-
 # %%
 # Read in image
 source_img = cv2.imread("test-image.jpg")
-img = resize_image(source_img, 800, 600, ensure_min=True)
+img = resize_image(source_img, 200, 100, ensure_min=True)
 pallette = get_pallete(img, num_colors=10, algorithm="k-means")
 # %%
 pallete_img = plot_pallette(pallette, height=200, width=800)
