@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import pandas as pd
-from sklearn import cluster
+from sklearn import cluster, mixture
 
 # %%
 MIN_HEIGHT = 600
@@ -71,7 +71,7 @@ def get_pallete(img: np.ndarray,
                                 verbose=0,
                                 algorithm="elkan")
         tmp = kmeans.fit(img)
-        kmeans.get_params()
+
         colors = np.round(kmeans.cluster_centers_)
         colors = colors.tolist()
 
@@ -79,7 +79,14 @@ def get_pallete(img: np.ndarray,
         proportions = counts / np.sum(counts)
 
     elif algorithm == "mixture":
-        raise NotImplementedError()
+        gaussian_mix = mixture.GaussianMixture(n_components=num_colors)
+        gaussian_mix.fit(img_2d)
+
+        colors = np.round(gaussian_mix.means_)
+        colors = colors.tolist()
+
+        counts = np.bincount(gaussian_mix.predict(img))
+        proportions = counts / np.sum(counts)
     else:
         raise ValueError("Wrong value of algorithm parameter.")
 
@@ -219,9 +226,24 @@ def pallette_to_csv(pallette, filename, *args, **kwargs) -> pd.DataFrame:
 # Read in image
 source_img = cv2.imread("test-image.jpg")
 img = resize_image(source_img, 200, 100, ensure_min=True)
-pallette = get_pallete(img, num_colors=20, algorithm="k-means")
-pallette_to_csv(pallette, "tmp.csv", index=False, sep="\t")
 
+# %%
+pallette = get_pallete(img, num_colors=20, algorithm="k-means")
+pallete_img = plot_pallette_with_text(pallette, color_max_width=600, vertical_padding=10)
+cv2.imwrite("tmp.png", pallete_img)
+
+# %%
+pallette = get_pallete(img, num_colors=10, algorithm="mixture")
+pallete_img = plot_pallette_with_text(pallette, color_max_width=600, vertical_padding=10)
+cv2.imwrite("tmp.png", pallete_img)
+
+# %%
+img_2d = _image2data(img)
+gaussian_mix = mixture.GaussianMixture(n_components=5)
+gaussian_mix.fit(img_2d)
+
+gaussian_mix.means_
+np.unique(gaussian_mix.predict(img_2d))
 
 # %%
 pallete_img = plot_pallette(pallette, height=200, width=800)
